@@ -1,9 +1,15 @@
 {
     "appKeys": {
         "KEY_CONDITIONS": 1,
+        "KEY_CONDITIONS_ID": 9,
+        "KEY_HUMIDITY": 8,
         "KEY_LATITUDE": 2,
         "KEY_LONGITUDE": 3,
-        "KEY_TEMPERATURE": 0
+        "KEY_PRESSURE": 7,
+        "KEY_SUNRISE": 4,
+        "KEY_SUNSET": 5,
+        "KEY_TEMPERATURE": 0,
+        "KEY_WIND": 6
     },
     "capabilities": [
         "location"
@@ -13,6 +19,11 @@
     "projectType": "native",
     "resources": {
         "media": [
+            {
+                "file": "fonts/weathericons-regular-webfont.ttf",
+                "name": "FONT_WEATHERICONS_REGULAR_18",
+                "type": "font"
+            },
             {
                 "file": "fonts/DIGITALDREAMNARROW.ttf",
                 "name": "FONT_DIGITALDREAM_NARROW_18",

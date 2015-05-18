@@ -1,11 +1,18 @@
 #include <pebble.h>
 #include "my_math.h"
-#include "suncalc.h"
 
 #define KEY_TEMPERATURE 0
 #define KEY_CONDITIONS 1
 #define KEY_LATITUDE 2
 #define KEY_LONGITUDE 3
+#define KEY_SUNRISE 4
+#define KEY_SUNSET 5
+#define KEY_WIND 6
+#define KEY_PRESSURE 7
+#define KEY_HUMIDITY 8
+#define KEY_CONDITIONS_ID 9
+
+#define HPA_MMHG = 1.3332239;
 
 static const char *day_of_week_2ch[7] = {"su", "mo","tu","we", "th", "fr", "sa"};
 static const char *month_of_year_2ch[12] = {"ja", "fe", "mr", "ap", "my", "jn", \
@@ -34,8 +41,8 @@ static char s_day_buffer[4], \
             s_sunset_buffer[8];
 
 
-static float latitude, longitude, \
-             sunrise_value, sunset_value;         
+static float latitude, longitude;
+            
 
 static short int 
           screen_ox, \
@@ -67,13 +74,14 @@ static short int
           canvas_font_text_height_px, \
           canvas_font_digits_height_px, \
           canvas_font_icons_height_px, \
-          temperature_degrees, \
-          time_zone;
+          temperature_degrees, conditions_id, \
+          time_zone, daylight_savings;
+
+static long int sunrise_epoch, sunset_epoch;
 
 static bool canvas_is_circle, \
             screen_is_inverted, \
-            conditions_updated, \
-            daylight_savings;
+            conditions_updated;
 
 static GCornerMask canvas_corner_mask;
 
@@ -93,17 +101,6 @@ static TextLayer *s_day_text_layer, \
                  *s_temperature_text_layer, \
                  *s_sunrise_text_layer, \
                  *s_sunset_text_layer;
-
-static void adjustTimezone(float* time) 
-{
-  int corrected_time = 12 + time_zone;
-  if (daylight_savings) {
-    corrected_time += 1;
-  }
-  *time += corrected_time;
-    if (*time > 24) *time -= 24;
-    if (*time < 0) *time += 24;
-}
 
 static short int get_canvas_size(short int axis_px, short int canvas_count, short int canvas_spacing) {
     short int result = (axis_px - ((canvas_count + 1) * canvas_spacing)) / canvas_count;
@@ -156,19 +153,19 @@ static void init_settings() {
     minutes_1stdigit_max_cols = 3;
     seconds_1stdigit_max_cols = 3;
 
-    daylight_savings = true;
-    // GMT Time Zone offset
-    // time_zone = round((longitude * 24) / 360);
+    daylight_savings = 1;
     time_zone = +2;
 
     if (canvas_count_ox <= 4) {
         canvas_font_text = fonts_get_system_font(FONT_KEY_GOTHIC_14);
         canvas_font_digits = fonts_load_custom_font( \
                              resource_get_handle(RESOURCE_ID_FONT_DIGITALDREAM_NARROW_18));
-        canvas_font_icons = fonts_get_system_font(FONT_KEY_GOTHIC_14);
+        canvas_font_icons = fonts_load_custom_font( \
+                             resource_get_handle(RESOURCE_ID_FONT_WEATHERICONS_REGULAR_18));
+
         canvas_font_text_height_px = 18;
         canvas_font_digits_height_px = 24;
-        canvas_font_icons_height_px = 18;
+        canvas_font_icons_height_px = 24;
       } else {
         canvas_font_text = fonts_get_system_font(FONT_KEY_GOTHIC_14);
         canvas_font_digits = fonts_get_system_font(FONT_KEY_GOTHIC_14);
@@ -214,31 +211,56 @@ static void set_s_conditions_buffer() {
     char my_string[3];
     strncpy(my_string, s_conditions_buffer, 2);
     snprintf(s_conditions_buffer, sizeof(s_conditions_buffer), my_string);
+  } else {
+    short int conditions_prefix = conditions_id / 10;
+    switch (conditions_prefix) {
+      case 20:
+        snprintf(s_conditions_buffer, sizeof(s_conditions_buffer), "\uf01d");
+        break;
+      case 30:
+        snprintf(s_conditions_buffer, sizeof(s_conditions_buffer), "\uf01c");
+        break;
+      case 50:
+        snprintf(s_conditions_buffer, sizeof(s_conditions_buffer), "\uf01a");
+        break;
+      case 60:
+        snprintf(s_conditions_buffer, sizeof(s_conditions_buffer), "\uf01b");
+        break;
+      case 70:
+        snprintf(s_conditions_buffer, sizeof(s_conditions_buffer), "\uf014");
+        break;
+      case 80:
+        if (conditions_id == 800) {
+          snprintf(s_conditions_buffer, sizeof(s_conditions_buffer), "\uf00d");
+        } else {
+          snprintf(s_conditions_buffer, sizeof(s_conditions_buffer), "\uf002");
+        }
+        break;
+      case 90:
+        snprintf(s_conditions_buffer, sizeof(s_conditions_buffer), "\uf073");
+        break;
+      default:
+        snprintf(s_conditions_buffer, sizeof(s_conditions_buffer), "\uf03e");
+    }
   }
 }
 
 static void set_sunset_sunrise_time () {
-  time_t now_epoch = time(NULL);
-  struct tm *time = localtime(&now_epoch);
-  short int sunrise_min, sunrise_hour, \
-            sunset_min, sunset_hour;
 
-  sunrise_value = calcSunRise(time->tm_year, time->tm_mon+1, time->tm_mday, latitude, longitude, 91.0f);
-  sunset_value = calcSunSet(time->tm_year, time->tm_mon+1, time->tm_mday, latitude, longitude, 91.0f);
-  adjustTimezone(&sunrise_value);
-  adjustTimezone(&sunset_value);
+  struct tm *t;
+  t = localtime(&sunrise_epoch);
+  short int sunrise_hour = t->tm_hour + time_zone + daylight_savings;
+  short int sunrise_minutes = t->tm_min;
+  t = localtime(&sunset_epoch);
+  short int sunset_hour = t->tm_hour + time_zone + daylight_savings;
+  short int sunset_minutes = t->tm_min;
   
-  sunrise_min = (int)(60*(sunrise_value-((int)(sunrise_value))));
-  sunrise_hour = (int)sunrise_value - 12;
-  sunset_min = (int)(60*(sunset_value-((int)(sunset_value))));
-  sunset_hour = (int)sunset_value + 12;
-
   if (canvas_count_ox <= 4) {
-    snprintf(s_sunrise_buffer, sizeof(s_sunrise_buffer), "%02d:%02d", sunrise_hour, sunrise_min);
-    snprintf(s_sunset_buffer, sizeof(s_sunset_buffer), "%02d:%02d", sunset_hour, sunset_min);
+    snprintf(s_sunrise_buffer, sizeof(s_sunrise_buffer), "%02d:%02d", sunrise_hour, sunrise_minutes);
+    snprintf(s_sunset_buffer, sizeof(s_sunset_buffer), "%02d:%02d", sunset_hour, sunset_minutes);
       } else {
-    snprintf(s_sunrise_buffer, sizeof(s_sunrise_buffer), "%02d%d", sunrise_hour, sunrise_min / 10);
-    snprintf(s_sunset_buffer, sizeof(s_sunset_buffer), "%02d%d", sunset_hour, sunset_min / 10);
+    snprintf(s_sunrise_buffer, sizeof(s_sunrise_buffer), "%02d%d", sunrise_hour, sunrise_minutes / 10);
+    snprintf(s_sunset_buffer, sizeof(s_sunset_buffer), "%02d%d", sunset_hour, sunset_minutes / 10);
   }
 }
 
@@ -477,12 +499,15 @@ static void main_window_load(Window *window) {
 
 static void main_window_unload(Window *window) {
   layer_destroy(s_display_layer);
+  inverter_layer_destroy(s_invert_layer);
   text_layer_destroy(s_seconds_text_layer);
   text_layer_destroy(s_day_text_layer);
   text_layer_destroy(s_weekday_text_layer);
   text_layer_destroy(s_month_text_layer);
   text_layer_destroy(s_weather_text_layer);
   text_layer_destroy(s_temperature_text_layer);
+  text_layer_destroy(s_sunrise_text_layer);
+  text_layer_destroy(s_sunset_text_layer);
 }
 
 static void inbox_received_callback(DictionaryIterator *iterator, void *context) {
@@ -498,11 +523,20 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
     case KEY_CONDITIONS:
       snprintf(s_conditions_buffer, sizeof(s_conditions_buffer), "%s", t->value->cstring);
       break;
+    case KEY_CONDITIONS_ID:
+      conditions_id = (int)t->value->int32;
+      break;
     case KEY_LATITUDE:
       latitude = myatof(t->value->cstring);
       break;
     case KEY_LONGITUDE:
       longitude = myatof(t->value->cstring);
+      break;
+    case KEY_SUNRISE:
+      sunrise_epoch = (long int)t->value->int32;
+      break;
+    case KEY_SUNSET:
+      sunset_epoch = (long int)t->value->int32;
       break;
     default:
       APP_LOG(APP_LOG_LEVEL_ERROR, "Key %d not recognized!", (int)t->key);

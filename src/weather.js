@@ -17,21 +17,24 @@ function locationSuccess(pos) {
   
   // Construct URL
   var url = "http://api.openweathermap.org/data/2.5/weather?lat=" +
-      latitude + "&lon=" + longitude;
+      latitude + "&lon=" + longitude + "&units=metric";
+      console.log("URL:" + url);
 
   // Send request to OpenWeatherMap
   xhrRequest(url, 'GET', 
     function(responseText) {
       // responseText contains a JSON object with weather info
       var json = JSON.parse(responseText);
-
-      // Temperature in Kelvin requires adjustment
-      var temperature = Math.round(json.main.temp - 273.15);
+      
+      // Temperature  
+      var temperature = Math.round(json.main.temp);
         console.log("Temperature:" + temperature);
 
       // Conditions
-      var conditions = json.weather[0].main;      
+      var conditions = json.weather[0].main;  
+      var conditions_id = json.weather[0].id; 
         console.log("Conditions:" + conditions);
+        console.log("Conditions ID:" + conditions_id);
         
       // Sunrise and Sunset
      var sunrise = json.sys.sunrise;
@@ -53,6 +56,7 @@ function locationSuccess(pos) {
       var dictionary = {
         "KEY_TEMPERATURE": temperature,
         "KEY_CONDITIONS": conditions,
+        "KEY_CONDITIONS_ID": conditions_id,
         "KEY_LATITUDE":  latitude,
         "KEY_LONGITUDE": longitude,
         "KEY_SUNRISE": sunrise,
