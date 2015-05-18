@@ -1,6 +1,6 @@
 #include <pebble.h>
-#include "my_math.h"
-
+#include "compat.h"
+    
 #define KEY_TEMPERATURE 0
 #define KEY_CONDITIONS 1
 #define KEY_LATITUDE 2
@@ -11,8 +11,7 @@
 #define KEY_PRESSURE 7
 #define KEY_HUMIDITY 8
 #define KEY_CONDITIONS_ID 9
-
-#define HPA_MMHG = 1.3332239;
+#define HPA_MMHG = 1.3332239
 
 static const char *day_of_week_2ch[7] = {"su", "mo","tu","we", "th", "fr", "sa"};
 static const char *month_of_year_2ch[12] = {"ja", "fe", "mr", "ap", "my", "jn", \
@@ -40,10 +39,8 @@ static char s_day_buffer[4], \
             s_sunrise_buffer[8], \
             s_sunset_buffer[8];
 
-
 static float latitude, longitude;
             
-
 static short int 
           screen_ox, \
           screen_oy, \
