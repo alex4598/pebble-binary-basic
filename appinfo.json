@@ -1,0 +1,33 @@
+{
+    "appKeys": {
+        "KEY_CONDITIONS": 1,
+        "KEY_LATITUDE": 2,
+        "KEY_LONGITUDE": 3,
+        "KEY_TEMPERATURE": 0
+    },
+    "capabilities": [
+        "location"
+    ],
+    "companyName": "Alexandru Ast",
+    "longName": "Binary Basic",
+    "projectType": "native",
+    "resources": {
+        "media": [
+            {
+                "file": "fonts/DIGITALDREAMNARROW.ttf",
+                "name": "FONT_DIGITALDREAM_NARROW_18",
+                "type": "font"
+            }
+        ]
+    },
+    "sdkVersion": "3",
+    "shortName": "Binary Basic",
+    "targetPlatforms": [
+        "aplite"
+    ],
+    "uuid": "5712b313-8c61-43b6-a8cb-157c5d323a9d",
+    "versionLabel": "0.1",
+    "watchapp": {
+        "watchface": true
+    }
+}
