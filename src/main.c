@@ -11,7 +11,8 @@
 #define KEY_PRESSURE 7
 #define KEY_HUMIDITY 8
 #define KEY_CONDITIONS_ID 9
-#define HPA_MMHG = 1.3332239
+
+static const float hpa_mmhg = 1.3332239;
 
 static const char *day_of_week_2ch[7] = {"su", "mo","tu","we", "th", "fr", "sa"};
 static const char *month_of_year_2ch[12] = {"ja", "fe", "mr", "ap", "my", "jn", \
@@ -37,7 +38,11 @@ static char s_day_buffer[4], \
             s_latitude_buffer[16], \
             s_longitude_buffer[16], \
             s_sunrise_buffer[8], \
-            s_sunset_buffer[8];
+            s_sunset_buffer[8], \
+            s_wind_buffer[4],\
+            s_pressure_buffer[5],\
+            s_humidity_buffer[5],\
+            s_age_buffer[4];
 
 static float latitude, longitude;
             
@@ -72,7 +77,8 @@ static short int
           canvas_font_digits_height_px, \
           canvas_font_icons_height_px, \
           temperature_degrees, conditions_id, \
-          time_zone, daylight_savings;
+          time_zone, daylight_savings, \
+          wind, pressure, humidity, age;
 
 static long int sunrise_epoch, sunset_epoch;
 
@@ -97,7 +103,11 @@ static TextLayer *s_day_text_layer, \
                  *s_weather_text_layer, \
                  *s_temperature_text_layer, \
                  *s_sunrise_text_layer, \
-                 *s_sunset_text_layer;
+                 *s_sunset_text_layer, \
+                 *s_wind_text_layer, \
+                 *s_pressure_text_layer, \
+                 *s_humidity_text_layer, \
+                 *s_age_text_layer;
 
 static short int get_canvas_size(short int axis_px, short int canvas_count, short int canvas_spacing) {
     short int result = (axis_px - ((canvas_count + 1) * canvas_spacing)) / canvas_count;
@@ -146,12 +156,13 @@ static void init_settings() {
     seconds_2nddigit_row = 5;
 
     default_digit_max_cols = 4;
-    hours_1stdigit_max_cols = 2;
-    minutes_1stdigit_max_cols = 3;
-    seconds_1stdigit_max_cols = 3;
+    hours_1stdigit_max_cols = 4;
+    minutes_1stdigit_max_cols = 4;
+    seconds_1stdigit_max_cols = 4;
 
     daylight_savings = 1;
     time_zone = +2;
+    age = 0;
 
     if (canvas_count_ox <= 4) {
         canvas_font_text = fonts_get_system_font(FONT_KEY_GOTHIC_14);
@@ -199,8 +210,40 @@ static void set_s_temperature_buffer () {
       snprintf(s_temperature_buffer, sizeof(s_temperature_buffer), "%02d", temperature_degrees);
     }
   } else {
-    snprintf(s_temperature_buffer, sizeof(s_temperature_buffer), "--");
+    snprintf(s_temperature_buffer, sizeof(s_temperature_buffer), "  ");
   }
+}
+
+static void set_s_wind_buffer () {
+    if (conditions_updated == true) {
+        snprintf(s_wind_buffer, sizeof(s_wind_buffer), "%d", wind);
+        } else {
+        snprintf(s_wind_buffer, sizeof(s_wind_buffer), "  ");
+    } 
+}
+
+static void set_s_pressure_buffer () {
+ if (conditions_updated == true) {
+        snprintf(s_pressure_buffer, sizeof(s_pressure_buffer), "%d", pressure);
+        } else {
+        snprintf(s_pressure_buffer, sizeof(s_pressure_buffer), "  ");
+    } 
+}
+
+static void set_s_humidity_buffer () {
+    if (conditions_updated == true) {
+        snprintf(s_humidity_buffer, sizeof(s_humidity_buffer), "%d%c", humidity, 37);
+        } else {
+        snprintf(s_humidity_buffer, sizeof(s_humidity_buffer), "  ");
+    } 
+}
+
+static void set_s_age_buffer() {
+    if (conditions_updated == true) {
+        age = 0;
+    } else {
+        snprintf(s_age_buffer, sizeof(s_age_buffer), "%d", age);
+    }
 }
 
 static void set_s_conditions_buffer() {
@@ -392,6 +435,11 @@ static void display_layer_update_callback(Layer *layer, GContext *ctx) {
   set_text_layer_color (1, display_hour / 10, s_sunrise_text_layer);
   text_layer_set_text(s_sunrise_text_layer, s_sunrise_buffer);
 
+  // wind layer display
+  set_text_layer_color (2, display_hour / 10, s_wind_text_layer);
+  set_s_wind_buffer();
+  text_layer_set_text(s_wind_text_layer, s_wind_buffer);
+
   // month layer display
   set_text_layer_color (0, display_hour % 10, s_month_text_layer);
   set_s_month_buffer(t->tm_mon);
@@ -401,26 +449,40 @@ static void display_layer_update_callback(Layer *layer, GContext *ctx) {
   set_text_layer_color (1, display_hour % 10, s_sunset_text_layer);
   text_layer_set_text(s_sunset_text_layer, s_sunset_buffer);
 
+  // pressure layer display
+  set_text_layer_color (2, display_hour % 10, s_pressure_text_layer);
+  set_s_pressure_buffer();
+  text_layer_set_text(s_pressure_text_layer, s_pressure_buffer);
 
   // day layer display
   set_text_layer_color (0, t->tm_min / 10, s_day_text_layer);
   snprintf(s_day_buffer, sizeof(s_day_buffer), "%02d", t->tm_mday);
   text_layer_set_text(s_day_text_layer, s_day_buffer);
 
-  // weather-temperature layer display
-  set_text_layer_color (1, t->tm_min / 10, s_temperature_text_layer);
-  set_s_temperature_buffer();
-  text_layer_set_text(s_temperature_text_layer, s_temperature_buffer);
+  // weather-today layer display
+  set_text_layer_color (1, t->tm_min / 10, s_weather_text_layer);
+  set_s_conditions_buffer();
+  text_layer_set_text(s_weather_text_layer, s_conditions_buffer);
+
+  // humidity layer display
+  set_text_layer_color (2, t->tm_min / 10, s_humidity_text_layer);
+  set_s_humidity_buffer();
+  text_layer_set_text(s_humidity_text_layer, s_humidity_buffer);
   
   // seconds layer display
   set_text_layer_color (0, t->tm_min % 10, s_seconds_text_layer);
   snprintf(s_seconds_buffer, sizeof(s_seconds_buffer), "%02d", t->tm_sec);
   text_layer_set_text(s_seconds_text_layer, s_seconds_buffer);
 
-  // weather-today layer display
-  set_text_layer_color (1, t->tm_min % 10, s_weather_text_layer);
-  set_s_conditions_buffer();
-  text_layer_set_text(s_weather_text_layer, s_conditions_buffer);
+  // weather-temperature layer display
+  set_text_layer_color (1, t->tm_min % 10, s_temperature_text_layer);
+  set_s_temperature_buffer();
+  text_layer_set_text(s_temperature_text_layer, s_temperature_buffer);
+
+  // age layer display
+  set_text_layer_color (2, t->tm_min % 10, s_age_text_layer);
+  set_s_age_buffer();
+  text_layer_set_text(s_age_text_layer, s_age_buffer);
 
   draw_cell_row_for_digit(ctx, display_hour / 10, hours_1stdigit_max_cols, hours_1stdigit_row);
   draw_cell_row_for_digit(ctx, display_hour % 10, default_digit_max_cols, hours_2nddigit_row);
@@ -433,9 +495,10 @@ static void display_layer_update_callback(Layer *layer, GContext *ctx) {
 static void handle_time_unit_tick(struct tm *tick_time, TimeUnits units_changed) {
   layer_mark_dirty(s_display_layer);
 
+  if (tick_time->tm_sec == 0) { age += 1; } 
   // Get weather update every hour
   if(tick_time->tm_min == 0 && tick_time->tm_sec == 0) {
-    
+    conditions_updated = false;
     // Begin dictionary
     DictionaryIterator *iter;
     app_message_outbox_begin(&iter);
@@ -463,8 +526,8 @@ static void main_window_load(Window *window) {
   s_day_text_layer = text_layer_create(get_canvas_text_layer_bounds(get_circle_center_from_cell_location(2, 0),1));
   set_text_layer_parameters (s_day_text_layer, canvas_font_digits);
 
-   // temperature layer setup
-  s_temperature_text_layer = text_layer_create(get_canvas_text_layer_bounds(get_circle_center_from_cell_location(2, 1),0));
+  // temperature layer setup
+  s_temperature_text_layer = text_layer_create(get_canvas_text_layer_bounds(get_circle_center_from_cell_location(3, 1),0));
   set_text_layer_parameters (s_temperature_text_layer, canvas_font_text);
 
   // weekday layer setup
@@ -484,8 +547,25 @@ static void main_window_load(Window *window) {
   set_text_layer_parameters (s_sunset_text_layer, canvas_font_text);
 
   // weather-today layer setup
-  s_weather_text_layer = text_layer_create(get_canvas_text_layer_bounds(get_circle_center_from_cell_location(3, 1),2));
+  s_weather_text_layer = text_layer_create(get_canvas_text_layer_bounds(get_circle_center_from_cell_location(2, 1),2));
   set_text_layer_parameters (s_weather_text_layer, canvas_font_icons);
+
+ // wind layer setup
+  s_wind_text_layer = text_layer_create(get_canvas_text_layer_bounds(get_circle_center_from_cell_location(0, 2),0));
+  set_text_layer_parameters (s_wind_text_layer, canvas_font_text);
+
+  // pressure layer setup
+  s_pressure_text_layer = text_layer_create(get_canvas_text_layer_bounds(get_circle_center_from_cell_location(1, 2),0));
+  set_text_layer_parameters (s_pressure_text_layer, canvas_font_text);
+
+  // humidity layer setup
+  s_humidity_text_layer = text_layer_create(get_canvas_text_layer_bounds(get_circle_center_from_cell_location(2, 2),0));
+  set_text_layer_parameters (s_humidity_text_layer, canvas_font_text);
+
+  // humidity layer setup
+  s_age_text_layer = text_layer_create(get_canvas_text_layer_bounds(get_circle_center_from_cell_location(3, 2),0));
+  set_text_layer_parameters (s_age_text_layer, canvas_font_text);
+
 
   if (screen_is_inverted == true) {
     s_invert_layer = inverter_layer_create(bounds);
@@ -505,6 +585,10 @@ static void main_window_unload(Window *window) {
   text_layer_destroy(s_temperature_text_layer);
   text_layer_destroy(s_sunrise_text_layer);
   text_layer_destroy(s_sunset_text_layer);
+  text_layer_destroy(s_wind_text_layer);
+  text_layer_destroy(s_pressure_text_layer);
+  text_layer_destroy(s_humidity_text_layer);
+  text_layer_destroy(s_age_text_layer);
 }
 
 static void inbox_received_callback(DictionaryIterator *iterator, void *context) {
@@ -534,6 +618,15 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
       break;
     case KEY_SUNSET:
       sunset_epoch = (long int)t->value->int32;
+      break;
+    case KEY_WIND:
+      wind = (int)t->value->int32;
+      break;
+    case KEY_PRESSURE:
+      pressure = (int)t->value->int32/hpa_mmhg;
+      break;
+    case KEY_HUMIDITY:
+      humidity = (int)t->value->int32;
       break;
     default:
       APP_LOG(APP_LOG_LEVEL_ERROR, "Key %d not recognized!", (int)t->key);

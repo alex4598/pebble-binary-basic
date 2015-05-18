@@ -43,9 +43,9 @@ function locationSuccess(pos) {
         console.log("Sunset:" + sunset);
      
      // Wind, Pressure and Humidity
-     var wind = json.wind.speed;
-     var pressure = json.main.pressure;
-     var humidity = json.main.humidity;
+     var wind = Math.round(json.wind.speed);
+     var pressure = Math.round(json.main.pressure);
+     var humidity = Math.round(json.main.humidity);
         console.log("Wind:" + wind);
         console.log("Pressure:" + pressure);
         console.log("Humidity:" + humidity);
