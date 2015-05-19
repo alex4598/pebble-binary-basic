@@ -1,10 +1,7 @@
 #include <pebble.h>
-#include "compat.h"
     
 #define KEY_TEMPERATURE 0
 #define KEY_CONDITIONS 1
-#define KEY_LATITUDE 2
-#define KEY_LONGITUDE 3
 #define KEY_SUNRISE 4
 #define KEY_SUNSET 5
 #define KEY_WIND 6
@@ -29,22 +26,18 @@ static const short int binary_map[4][10] = { \
     {0, 0, 0, 0, 0, 0, 0, 0, 1, 1} \
 };
 
-static char s_day_buffer[4], \
+static char s_day_buffer[3], \
             s_weekday_buffer[4], \
             s_month_buffer[4], \
-            s_seconds_buffer[4], \
+            s_seconds_buffer[3], \
             s_temperature_buffer[4], \
-            s_conditions_buffer[5], \
-            s_latitude_buffer[16], \
-            s_longitude_buffer[16], \
-            s_sunrise_buffer[8], \
-            s_sunset_buffer[8], \
+            s_conditions_buffer[4], \
+            s_sunrise_buffer[6], \
+            s_sunset_buffer[6], \
             s_wind_buffer[4],\
             s_pressure_buffer[5],\
-            s_humidity_buffer[5],\
-            s_age_buffer[4];
-
-static float latitude, longitude;
+            s_humidity_buffer[4],\
+            s_refreshed_buffer[4];
             
 static short int 
           screen_ox, \
@@ -78,11 +71,12 @@ static short int
           canvas_font_icons_height_px, \
           temperature_degrees, conditions_id, \
           time_zone, daylight_savings, \
-          wind, pressure, humidity, age;
+          wind, pressure, humidity, refreshed_minutes_ago;
 
 static long int sunrise_epoch, sunset_epoch;
 
 static bool canvas_is_circle, \
+            canvas_justified, \
             screen_is_inverted, \
             conditions_updated;
 
@@ -107,17 +101,15 @@ static TextLayer *s_day_text_layer, \
                  *s_wind_text_layer, \
                  *s_pressure_text_layer, \
                  *s_humidity_text_layer, \
-                 *s_age_text_layer;
+                 *s_refreshed_text_layer;
 
 static short int get_canvas_size(short int axis_px, short int canvas_count, short int canvas_spacing) {
-    short int result = (axis_px - ((canvas_count + 1) * canvas_spacing)) / canvas_count;
-    return result;
+    return (axis_px - ((canvas_count + 1) * canvas_spacing)) / canvas_count;
 }
 
 static short int get_canvas_border(short int axis_px, short int canvas_count, short int canvas_spacing) {
     float get_canvas_size = (axis_px - ((canvas_count + 1) * canvas_spacing)) / canvas_count;
-    short int result = (axis_px - canvas_spacing - ((get_canvas_size + canvas_spacing) * canvas_count)) / 2;
-    return result;
+    return (axis_px - canvas_spacing - ((get_canvas_size + canvas_spacing) * canvas_count)) / 2;
 }
 
 static void init_settings() {
@@ -127,10 +119,12 @@ static void init_settings() {
     screen_oy = 168;
     
     canvas_is_circle = false;
+    canvas_justified = false;
     canvas_corner_radius = 0;
     canvas_corner_mask = GCornersAll;
     canvas_border_px = 1;
     canvas_fill_px = 0;
+    canvas_layer_crop_px = canvas_fill_px;
 
     canvas_count_ox = 4;
     canvas_count_oy = 4;
@@ -140,6 +134,14 @@ static void init_settings() {
 
     canvas_rectangle_ox = get_canvas_size(screen_ox,canvas_count_ox,canvas_spacing_ox);
     canvas_rectangle_oy = get_canvas_size(screen_oy,canvas_count_oy,canvas_spacing_oy);
+    if (!canvas_justified) {
+      if (canvas_rectangle_oy > canvas_rectangle_ox) {
+        canvas_rectangle_oy = canvas_rectangle_ox;
+        } else {
+        canvas_rectangle_ox = canvas_rectangle_oy;
+      } 
+    }
+
     canvas_border_ox = get_canvas_border(screen_ox,canvas_count_ox,canvas_spacing_ox);
     canvas_border_oy = get_canvas_border(screen_oy,canvas_count_oy,canvas_spacing_oy);
 
@@ -160,9 +162,8 @@ static void init_settings() {
     minutes_1stdigit_max_cols = 4;
     seconds_1stdigit_max_cols = 4;
 
-    daylight_savings = 1;
     time_zone = +2;
-    age = 0;
+    refreshed_minutes_ago = 0;
 
     if (canvas_count_ox <= 4) {
         canvas_font_text = fonts_get_system_font(FONT_KEY_GOTHIC_14);
@@ -182,8 +183,6 @@ static void init_settings() {
         canvas_font_digits_height_px = 18;
         canvas_font_icons_height_px = 18;
     }
-    
-    canvas_layer_crop_px = canvas_fill_px;
 }
 
 static void set_s_month_buffer(int month) {
@@ -216,42 +215,50 @@ static void set_s_temperature_buffer () {
 
 static void set_s_wind_buffer () {
     if (conditions_updated == true) {
+      if (canvas_count_ox <= 5) {
+        snprintf(s_wind_buffer, sizeof(s_wind_buffer), "%dkh", wind);
+      } else {
         snprintf(s_wind_buffer, sizeof(s_wind_buffer), "%d", wind);
-        } else {
-        snprintf(s_wind_buffer, sizeof(s_wind_buffer), "  ");
+      }
+    } else {
+      snprintf(s_wind_buffer, sizeof(s_wind_buffer), "  ");
     } 
 }
 
 static void set_s_pressure_buffer () {
  if (conditions_updated == true) {
+  if (canvas_count_ox <= 5) {
         snprintf(s_pressure_buffer, sizeof(s_pressure_buffer), "%d", pressure);
-        } else {
-        snprintf(s_pressure_buffer, sizeof(s_pressure_buffer), "  ");
-    } 
+      } else {
+        snprintf(s_pressure_buffer, sizeof(s_pressure_buffer), ".%dk", (pressure % 1000)/100);
+      }
+    } else {
+      snprintf(s_pressure_buffer, sizeof(s_pressure_buffer), "  ");
+    }
 }
 
 static void set_s_humidity_buffer () {
     if (conditions_updated == true) {
+      if (canvas_count_ox <= 5) {
         snprintf(s_humidity_buffer, sizeof(s_humidity_buffer), "%d%c", humidity, 37);
         } else {
-        snprintf(s_humidity_buffer, sizeof(s_humidity_buffer), "  ");
+        snprintf(s_humidity_buffer, sizeof(s_humidity_buffer), "%d", humidity);
+      }
+    } else {
+      snprintf(s_humidity_buffer, sizeof(s_humidity_buffer), "  ");
     } 
 }
 
-static void set_s_age_buffer() {
+static void set_s_refreshed_buffer() {
     if (conditions_updated == true) {
-        age = 0;
+      snprintf(s_refreshed_buffer, sizeof(s_refreshed_buffer), "%d", refreshed_minutes_ago);
     } else {
-        snprintf(s_age_buffer, sizeof(s_age_buffer), "%d", age);
+      snprintf(s_refreshed_buffer, sizeof(s_refreshed_buffer), "  ");
     }
 }
 
 static void set_s_conditions_buffer() {
-  if (canvas_count_ox > 5) {
-    char my_string[3];
-    strncpy(my_string, s_conditions_buffer, 2);
-    snprintf(s_conditions_buffer, sizeof(s_conditions_buffer), my_string);
-  } else {
+  if (canvas_count_ox <=4) {
     short int conditions_prefix = conditions_id / 10;
     switch (conditions_prefix) {
       case 20:
@@ -320,11 +327,11 @@ static void set_text_layer_parameters (TextLayer *text_layer, GFont font){
 }
 
 static GRect get_canvas_text_layer_bounds(GPoint center, short int type) {
-    GRect bounds;
-    GPoint origin;
-    GSize size;
-    short int x = center.x;
-    short int y = center.y;
+  GRect bounds;
+  GPoint origin;
+  GSize size;
+  short int x = center.x;
+  short int y = center.y;
 
     switch (type) {
       case 1:
@@ -375,7 +382,7 @@ static void draw_circle(GContext *ctx, GPoint circle_center, bool filled) {
   graphics_context_set_fill_color(ctx, GColorBlack);
   graphics_fill_circle(ctx, circle_center, canvas_circle_radius);
 
-  if (canvas_fill_px >> 0) {
+  if (canvas_fill_px > 0) {
   graphics_context_set_fill_color(ctx, GColorWhite);
   graphics_fill_circle(ctx, circle_center, canvas_circle_radius - canvas_fill_px);
   }
@@ -479,10 +486,10 @@ static void display_layer_update_callback(Layer *layer, GContext *ctx) {
   set_s_temperature_buffer();
   text_layer_set_text(s_temperature_text_layer, s_temperature_buffer);
 
-  // age layer display
-  set_text_layer_color (2, t->tm_min % 10, s_age_text_layer);
-  set_s_age_buffer();
-  text_layer_set_text(s_age_text_layer, s_age_buffer);
+  // refreshed layer display
+  set_text_layer_color (2, t->tm_min % 10, s_refreshed_text_layer);
+  set_s_refreshed_buffer();
+  text_layer_set_text(s_refreshed_text_layer, s_refreshed_buffer);
 
   draw_cell_row_for_digit(ctx, display_hour / 10, hours_1stdigit_max_cols, hours_1stdigit_row);
   draw_cell_row_for_digit(ctx, display_hour % 10, default_digit_max_cols, hours_2nddigit_row);
@@ -494,10 +501,14 @@ static void display_layer_update_callback(Layer *layer, GContext *ctx) {
 
 static void handle_time_unit_tick(struct tm *tick_time, TimeUnits units_changed) {
   layer_mark_dirty(s_display_layer);
-
-  if (tick_time->tm_sec == 0) { age += 1; } 
-  // Get weather update every hour
-  if(tick_time->tm_min == 0 && tick_time->tm_sec == 0) {
+  if (refreshed_minutes_ago > 120) {
+    conditions_updated = false;
+    conditions_id = 0;
+  }
+  if (tick_time->tm_sec == 0) { refreshed_minutes_ago += 1; } 
+  if ((refreshed_minutes_ago == 45) || \
+      (refreshed_minutes_ago > 45 && refreshed_minutes_ago % 15 == 0) || \
+      (refreshed_minutes_ago > 180 && refreshed_minutes_ago % 30 == 0)) {
     conditions_updated = false;
     // Begin dictionary
     DictionaryIterator *iter;
@@ -563,8 +574,8 @@ static void main_window_load(Window *window) {
   set_text_layer_parameters (s_humidity_text_layer, canvas_font_text);
 
   // humidity layer setup
-  s_age_text_layer = text_layer_create(get_canvas_text_layer_bounds(get_circle_center_from_cell_location(3, 2),0));
-  set_text_layer_parameters (s_age_text_layer, canvas_font_text);
+  s_refreshed_text_layer = text_layer_create(get_canvas_text_layer_bounds(get_circle_center_from_cell_location(3, 2),0));
+  set_text_layer_parameters (s_refreshed_text_layer, canvas_font_text);
 
 
   if (screen_is_inverted == true) {
@@ -588,15 +599,14 @@ static void main_window_unload(Window *window) {
   text_layer_destroy(s_wind_text_layer);
   text_layer_destroy(s_pressure_text_layer);
   text_layer_destroy(s_humidity_text_layer);
-  text_layer_destroy(s_age_text_layer);
+  text_layer_destroy(s_refreshed_text_layer);
 }
 
 static void inbox_received_callback(DictionaryIterator *iterator, void *context) {
   Tuple *t = dict_read_first(iterator);
   conditions_updated = true;
-  // For all items
+  refreshed_minutes_ago = 0;
   while(t != NULL) {
-    // Which key was received?
     switch(t->key) {
     case KEY_TEMPERATURE:
       temperature_degrees = (int)t->value->int32;
@@ -606,12 +616,6 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
       break;
     case KEY_CONDITIONS_ID:
       conditions_id = (int)t->value->int32;
-      break;
-    case KEY_LATITUDE:
-      latitude = myatof(t->value->cstring);
-      break;
-    case KEY_LONGITUDE:
-      longitude = myatof(t->value->cstring);
       break;
     case KEY_SUNRISE:
       sunrise_epoch = (long int)t->value->int32;

@@ -9,66 +9,35 @@ var xhrRequest = function (url, type, callback) {
 
 function locationSuccess(pos) {
   var latitude = String(pos.coords.latitude);
-  var longitude = String(pos.coords.longitude);
-    
-  // Coordinates 
-    console.log("Latitude is " + latitude);
-    console.log("Longitude is " + longitude);
-  
-  // Construct URL
+  var longitude = String(pos.coords.longitude); 
+
   var url = "http://api.openweathermap.org/data/2.5/weather?lat=" +
-      latitude + "&lon=" + longitude + "&units=metric";
+      latitude + "&lon=" + longitude;
       console.log("URL:" + url);
 
-  // Send request to OpenWeatherMap
   xhrRequest(url, 'GET', 
     function(responseText) {
-      // responseText contains a JSON object with weather info
-      var json = JSON.parse(responseText);
-      
-      // Temperature  
-      var temperature = Math.round(json.main.temp);
-        console.log("Temperature:" + temperature);
-
-      // Conditions
-      var conditions = json.weather[0].main;  
-      var conditions_id = json.weather[0].id; 
-        console.log("Conditions:" + conditions);
-        console.log("Conditions ID:" + conditions_id);
-        
-      // Sunrise and Sunset
+     var json = JSON.parse(responseText);
+     var temperature = Math.round(json.main.temp - 273.15);
+     var conditions = json.weather[0].main;  
+     var conditions_id = json.weather[0].id;
      var sunrise = json.sys.sunrise;
      var sunset = json.sys.sunset;
-        console.log("Sunrise:" + sunrise);
-        console.log("Sunset:" + sunset);
-     
-     // Wind, Pressure and Humidity
      var wind = Math.round(json.wind.speed);
      var pressure = Math.round(json.main.pressure);
      var humidity = Math.round(json.main.humidity);
-        console.log("Wind:" + wind);
-        console.log("Pressure:" + pressure);
-        console.log("Humidity:" + humidity);
-        
      
-      
-      // Assemble dictionary
-      var dictionary = {
+     var dictionary = {
         "KEY_TEMPERATURE": temperature,
         "KEY_CONDITIONS": conditions,
         "KEY_CONDITIONS_ID": conditions_id,
-        "KEY_LATITUDE":  latitude,
-        "KEY_LONGITUDE": longitude,
         "KEY_SUNRISE": sunrise,
         "KEY_SUNSET": sunset,
         "KEY_WIND": wind,
         "KEY_PRESSURE": pressure,
-        "KEY_HUMIDITY": humidity
-        
-          
+        "KEY_HUMIDITY": humidity  
       };
 
-      // Send to Pebble
       Pebble.sendAppMessage(dictionary,
         function(e) {
           console.log("Info sent to Pebble successfully!");
