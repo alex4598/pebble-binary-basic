@@ -163,6 +163,7 @@ static void init_settings() {
     seconds_1stdigit_max_cols = 4;
 
     time_zone = +2;
+    daylight_savings = 1;
     refreshed_minutes_ago = 0;
 
     if (canvas_count_ox <= 4) {

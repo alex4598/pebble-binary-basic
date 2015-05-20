@@ -3,8 +3,6 @@
         "KEY_CONDITIONS": 1,
         "KEY_CONDITIONS_ID": 9,
         "KEY_HUMIDITY": 8,
-        "KEY_LATITUDE": 2,
-        "KEY_LONGITUDE": 3,
         "KEY_PRESSURE": 7,
         "KEY_SUNRISE": 4,
         "KEY_SUNSET": 5,
