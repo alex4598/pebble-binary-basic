@@ -9,7 +9,7 @@ enum appKeys {
     KEY_PRESSURE,
     KEY_HUMIDITY,
     KEY_CONDITIONS_ID,
-}
+};
 
 static const float hpa_hg = 1.3332239; //mmhq
 //static const float hpa_hg = 33.86; //inhq
