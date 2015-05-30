@@ -1,13 +1,13 @@
 {
     "appKeys": {
-        "KEY_CONDITIONS": 1,
-        "KEY_CONDITIONS_ID": 9,
-        "KEY_HUMIDITY": 8,
-        "KEY_PRESSURE": 7,
-        "KEY_SUNRISE": 4,
-        "KEY_SUNSET": 5,
         "KEY_TEMPERATURE": 0,
-        "KEY_WIND": 6
+        "KEY_CONDITIONS": 1,
+        "KEY_SUNRISE": 2,
+        "KEY_SUNSET": 3,
+        "KEY_WIND": 4,
+        "KEY_PRESSURE": 5,
+        "KEY_HUMIDITY": 6,
+        "KEY_CONDITIONS_ID": 7
     },
     "capabilities": [
         "location"

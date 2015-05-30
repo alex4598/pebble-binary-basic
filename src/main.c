@@ -1,9 +1,9 @@
 #include <pebble.h>
    
-enum KEYS {
+enum appKeys {
     KEY_TEMPERATURE,
     KEY_CONDITIONS,
-    KEY_SUNRISE = 4,
+    KEY_SUNRISE,
     KEY_SUNSET,
     KEY_WIND,
     KEY_PRESSURE,
