@@ -19,7 +19,7 @@ function locationSuccess(pos) {
   var secToGmt = getTimezoneOffsetSec();
 
   //For Farhenheit, change "metric" to "imperial".
-  var url = "http://api.openweathermap.org/data/2.5/weather?units=metric&lat=" +
+  var url = "http://api.openweathermap.org/data/2.5/weather?units=imperial&lat=" +
       latitude + "&lon=" + longitude;
       console.log("URL:" + url);
 

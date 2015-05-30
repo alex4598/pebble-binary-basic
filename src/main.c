@@ -11,8 +11,8 @@ enum appKeys {
     KEY_CONDITIONS_ID,
 };
 
-static const float hpa_hg = 1.3332239; //mmhq
-//static const float hpa_hg = 33.86; //inhq
+//static const float hpa_hg = 1.3332239; //mmhq
+static const float hpa_hg = 33.86; //inhq
 
 static const char *day_of_week_2ch[7] = {"su", "mo","tu","we", "th", "fr", "sa"};
 static const char *month_of_year_2ch[12] = {"ja", "fe", "mr", "ap", "my", "jn", \
@@ -205,7 +205,7 @@ static void set_s_weekday_buffer(int weekday) {
 static void set_s_temperature_buffer () {
   if (conditions_updated == true) {
     if (canvas_count_ox <= 5) {
-      snprintf(s_temperature_buffer, sizeof(s_temperature_buffer), "%02dc", temperature_degrees);
+      snprintf(s_temperature_buffer, sizeof(s_temperature_buffer), "%02df", temperature_degrees);
     } else {
       snprintf(s_temperature_buffer, sizeof(s_temperature_buffer), "%02d", temperature_degrees);
     }
@@ -217,7 +217,7 @@ static void set_s_temperature_buffer () {
 static void set_s_wind_buffer () {
     if (conditions_updated == true) {
       if (canvas_count_ox <= 5) {
-        snprintf(s_wind_buffer, sizeof(s_wind_buffer), "%dkh", wind);
+        snprintf(s_wind_buffer, sizeof(s_wind_buffer), "%dmi", wind);
       } else {
         snprintf(s_wind_buffer, sizeof(s_wind_buffer), "%d", wind);
       }
