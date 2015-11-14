@@ -15,12 +15,13 @@ function getTimezoneOffsetSec() {
 
 function locationSuccess(pos) {
   var latitude = String(pos.coords.latitude);
-  var longitude = String(pos.coords.longitude); 
+  var longitude = String(pos.coords.longitude);
+  var apikey = "REDACTED";
   var secToGmt = getTimezoneOffsetSec();
 
   //For Farhenheit, change "metric" to "imperial".
   var url = "http://api.openweathermap.org/data/2.5/weather?units=imperial&lat=" +
-      latitude + "&lon=" + longitude;
+      latitude + "&lon=" + longitude + "&appid=" + apikey;
       console.log("URL:" + url);
 
   xhrRequest(url, 'GET', 

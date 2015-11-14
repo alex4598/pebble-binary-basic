@@ -2,7 +2,8 @@
 
 Build/Installation
 - Setup Pebble SDK 3.0
-- run 'peble build'
+- Edit src/weather.js and add your openweathermap API key
+- run 'pebble build'
 - copy build/pebble-binary-basic.pbw to phone
 - Open pebble-binary-basic.pbw on phone; Pebble app will ask you to install to watch
 
