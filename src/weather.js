@@ -7,22 +7,31 @@ var xhrRequest = function (url, type, callback) {
   xhr.send();
 };
 
+function getTimezoneOffsetSec() {
+  //see http://developer.getpebble.com/blog/2013/12/20/Pebble-Javascript-Tips-and-Tricks/
+  var offsetSeconds = new Date().getTimezoneOffset() * 60;
+  return offsetSeconds;
+}
+
 function locationSuccess(pos) {
   var latitude = String(pos.coords.latitude);
-  var longitude = String(pos.coords.longitude); 
+  var longitude = String(pos.coords.longitude);
+  var apikey = "REDACTED";
+  var secToGmt = getTimezoneOffsetSec();
 
-  var url = "http://api.openweathermap.org/data/2.5/weather?lat=" +
-      latitude + "&lon=" + longitude;
+  //For Farhenheit, change "metric" to "imperial".
+  var url = "http://api.openweathermap.org/data/2.5/weather?units=imperial&lat=" +
+      latitude + "&lon=" + longitude + "&appid=" + apikey;
       console.log("URL:" + url);
 
   xhrRequest(url, 'GET', 
     function(responseText) {
      var json = JSON.parse(responseText);
-     var temperature = Math.round(json.main.temp - 273.15);
+     var temperature = Math.round(json.main.temp);
      var conditions = json.weather[0].main;  
      var conditions_id = json.weather[0].id;
-     var sunrise = json.sys.sunrise;
-     var sunset = json.sys.sunset;
+     var sunrise = json.sys.sunrise - secToGmt;
+     var sunset = json.sys.sunset - secToGmt;
      var wind = Math.round(json.wind.speed);
      var pressure = Math.round(json.main.pressure);
      var humidity = Math.round(json.main.humidity);

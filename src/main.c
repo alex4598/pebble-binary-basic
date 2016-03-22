@@ -1,15 +1,18 @@
 #include <pebble.h>
-    
-#define KEY_TEMPERATURE 0
-#define KEY_CONDITIONS 1
-#define KEY_SUNRISE 4
-#define KEY_SUNSET 5
-#define KEY_WIND 6
-#define KEY_PRESSURE 7
-#define KEY_HUMIDITY 8
-#define KEY_CONDITIONS_ID 9
+   
+enum appKeys {
+    KEY_TEMPERATURE,
+    KEY_CONDITIONS,
+    KEY_SUNRISE,
+    KEY_SUNSET,
+    KEY_WIND,
+    KEY_PRESSURE,
+    KEY_HUMIDITY,
+    KEY_CONDITIONS_ID,
+};
 
-static const float hpa_mmhg = 1.3332239;
+//static const float hpa_hg = 1.3332239; //mmhq
+static const float hpa_hg = 33.86; //inhq
 
 static const char *day_of_week_2ch[7] = {"su", "mo","tu","we", "th", "fr", "sa"};
 static const char *month_of_year_2ch[12] = {"ja", "fe", "mr", "ap", "my", "jn", \
@@ -70,7 +73,6 @@ static short int
           canvas_font_digits_height_px, \
           canvas_font_icons_height_px, \
           temperature_degrees, conditions_id, \
-          time_zone, daylight_savings, \
           wind, pressure, humidity, refreshed_minutes_ago;
 
 static long int sunrise_epoch, sunset_epoch;
@@ -162,8 +164,6 @@ static void init_settings() {
     minutes_1stdigit_max_cols = 4;
     seconds_1stdigit_max_cols = 4;
 
-    time_zone = +2;
-    daylight_savings = 1;
     refreshed_minutes_ago = 0;
 
     if (canvas_count_ox <= 4) {
@@ -205,7 +205,7 @@ static void set_s_weekday_buffer(int weekday) {
 static void set_s_temperature_buffer () {
   if (conditions_updated == true) {
     if (canvas_count_ox <= 5) {
-      snprintf(s_temperature_buffer, sizeof(s_temperature_buffer), "%02dc", temperature_degrees);
+      snprintf(s_temperature_buffer, sizeof(s_temperature_buffer), "%02df", temperature_degrees);
     } else {
       snprintf(s_temperature_buffer, sizeof(s_temperature_buffer), "%02d", temperature_degrees);
     }
@@ -217,7 +217,7 @@ static void set_s_temperature_buffer () {
 static void set_s_wind_buffer () {
     if (conditions_updated == true) {
       if (canvas_count_ox <= 5) {
-        snprintf(s_wind_buffer, sizeof(s_wind_buffer), "%dkh", wind);
+        snprintf(s_wind_buffer, sizeof(s_wind_buffer), "%dmi", wind);
       } else {
         snprintf(s_wind_buffer, sizeof(s_wind_buffer), "%d", wind);
       }
@@ -297,10 +297,10 @@ static void set_sunset_sunrise_time () {
 
   struct tm *t;
   t = localtime(&sunrise_epoch);
-  short int sunrise_hour = t->tm_hour + time_zone + daylight_savings;
+  short int sunrise_hour = t->tm_hour;
   short int sunrise_minutes = t->tm_min;
   t = localtime(&sunset_epoch);
-  short int sunset_hour = t->tm_hour + time_zone + daylight_savings;
+  short int sunset_hour = t->tm_hour;
   short int sunset_minutes = t->tm_min;
   
   if (canvas_count_ox <= 4) {
@@ -628,7 +628,7 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
       wind = (int)t->value->int32;
       break;
     case KEY_PRESSURE:
-      pressure = (int)t->value->int32/hpa_mmhg;
+      pressure = (int)t->value->int32/hpa_hg;
       break;
     case KEY_HUMIDITY:
       humidity = (int)t->value->int32;
